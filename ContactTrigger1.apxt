@@ -1,0 +1,32 @@
+/*
+Scenario - 
+Field in Contact - isActive__c checkbox
+Field in Account - NumberOfContactsActive__c Integer
+When contact is created,updated based on isActive__c value of contact, update NumberOfContactsActive__c in related Account with Active Contacts
+*/
+trigger ContactTrigger1 on Contact(after insert, after update){
+  if(Trigger.isAfter && (Trigger.isInsert || Trigger.isUpdate)){
+        Set<Id> accIds = new Set<Id>();
+        for(Contact c : [SELECT Id, AccountId, isActive__c from Contact]){
+            accIds.add(c.AccountId);
+        }
+        Map<Id,Integer> accMap = new Map<Id,Integer>();
+        for(Account a :[SELECT Id, NumberOfContactsActive__c,(SELECT Id,isActive__c from Contacts) FROM Account where Id IN : accIds]){
+            Integer count = 0;
+            for(Contact contact : a.Contacts){
+                if(contact.isActive__c){
+                    count++;
+                }
+            }
+            accMap.put(a.Id,count);
+        }
+        List<Account> accListToUpdate = new List<Account>();
+        for(Id a : accMap.keySet()){
+            Account acc = new Account();
+            acc.Id = a;
+            acc.NumberOfContactsActive__c = accMap.get(a);
+            accListToUpdate.add(acc);
+        }
+        update accListToUpdate;
+    }
+}
